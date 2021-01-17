@@ -1,5 +1,5 @@
 # Blodwen PIXI
-Experimental PixiJS bindings for Idris 2.
+Experimental [PixiJS](https://github.com/pixijs/pixi.js) bindings for [Idris 2](https://github.com/idris-lang/Idris2).
 
 ---
 

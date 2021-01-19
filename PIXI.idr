@@ -3,6 +3,15 @@ import ESFFI
 
 data ObservablePoint = MkObsPoint AnyPtr
 
+namespace ObservablePoint
+
+    (.x) : ObservablePoint -> Property.Number
+    (.x) (MkObsPoint p) = ESNum p ("x")
+
+    (.y) : ObservablePoint -> Property.Number
+    (.y) (MkObsPoint p) = ESNum p ("x")
+    
+
 public export
 interface DisplayObject a where
     (.internal) : a -> AnyPtr
@@ -37,11 +46,30 @@ interface DisplayObject a where
     default_angle : a -> Property.Number
     default_angle obj  = ESNum obj.internal "angle" -- rotation in degrees
 
+    (.pivot) : HasIO io => a -> io ObservablePoint
+    default_pivot : HasIO io => a -> io ObservablePoint
+    default_pivot a = map MkObsPoint $ primIO $ prim__access a.internal "pivot"
+    (.position) : HasIO io => a -> io ObservablePoint
+    default_position : HasIO io => a -> io ObservablePoint
+    default_position a = map MkObsPoint $ primIO $ prim__access a.internal "position"
+    (.scale) : HasIO io => a -> io ObservablePoint
+    default_scale : HasIO io => a -> io ObservablePoint
+    default_scale a = map MkObsPoint $ primIO $ prim__access a.internal "scale"
+    (.skew) : HasIO io => a -> io ObservablePoint
+    default_skew : HasIO io => a -> io ObservablePoint
+    default_skew a = map MkObsPoint $ primIO $ prim__access a.internal "skew"
+
+    
+
     -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
     -- x = default_x
     -- y = default_y
     -- rotation = default_rotation
     -- angle = default_angle
+    -- pivot = default_pivot
+    -- position = default_position
+    -- scale = default_scale
+    -- skew = default_skew
 
 export
 data Texture = MkTexture AnyPtr
@@ -64,6 +92,10 @@ DisplayObject Sprite where
     y = default_y
     rotation = default_rotation
     angle = default_angle
+    pivot = default_pivot
+    position = default_position
+    scale = default_scale
+    skew = default_skew
     internal (MkSprite i) = i
 
 namespace Sprite
@@ -96,6 +128,144 @@ namespace Sprite
     blendAdd : HasIO io => Sprite -> io ()
     blendAdd (MkSprite s) = primIO $ prim__blend_add s
 
+namespace TextStyle
+    public export
+    data Align = Left | Center | Right
+    Show Align where
+        show Left = "left"
+        show Center = "center"
+        show Right = "right"
+
+    public export
+    data Fill = List Double
+           -- | CanvasGradient
+           -- | CanvasPattern
+
+    public export
+    data Gradient = LINEAR_VERTICAL
+                  | LINEAR_HORIZONTAL
+
+    %foreign "browser:lambda: () => PIXI.TEXT_GRADIENT"
+    prim__gradient_store : PrimIO AnyPtr
+
+    export
+    ESEnum Gradient where
+       store _ = prim__gradient_store
+       name LINEAR_VERTICAL = "LINEAR_VERTICAL"
+       name LINEAR_HORIZONTAL = "LINEAR_HORIZONTAL"
+
+    namespace Font
+        public export
+        data Size = Px Double
+                    | Pt Double
+                    | Prc Double
+                    | Em Double
+
+        export
+        Show Size where
+            show (Px d) = show d ++ "px"
+            show (Pt d) = show d ++ "pt"
+            show (Prc d) = show d ++ "%"
+            show (Em d) = show d ++ "em"
+
+        -- TODO: Implement checks that d > 0
+        
+        public export
+        data Style = Normal
+                    | Italic
+                    | Oblique
+
+        export
+        Show Style where
+            show Normal = "normal"
+            show Italic = "italic"
+            show Oblique = "oblique"
+
+        public export
+        data Variant = VariantNormal
+                     | VariantSmallCaps
+
+        public export
+        data Weight = WeightNormal
+                    | WeightBold
+                    | WeightBolder
+                    | WeightLighter
+                    | Weight100W
+                    | Weight200W
+                    | Weight300W
+                    | Weight400W
+                    | Weight500W
+                    | Weight600W
+                    | Weight700W
+                    | Weight800W
+                    | Weight900W
+        
+        Show Weight where
+            show WeightNormal = "normal"
+            show WeightBold = "bold"
+            show WeightBolder = "bolder"
+            show WeightLighter = "lighter"
+            show Weight100W = "100"
+            show Weight200W = "200"
+            show Weight300W = "300"
+            show Weight400W = "400"
+            show Weight500W = "500"
+            show Weight600W = "600"
+            show Weight700W = "700"
+            show Weight800W = "800"
+            show Weight900W = "900"
+
+    public export
+    data LineJoin = Miter -- sharp corner
+                  | Round -- round corner
+                  | Bevel -- squared corner
+
+    Show LineJoin where
+        show Miter = "miter"
+        show Round = "round"
+        show Bevel = "bevel"
+
+    public export
+    data Whitespace = Normal
+                    | Pre
+                    | PreLine
+
+    Show Whitespace where
+        show Normal = "normal"
+        show Pre = "pre"
+        show PreLine = "pre-line"
+
+record TextStyle where
+    constructor MkTextStyle
+    align : Align
+    breakWords : Bool
+    dropShadow : Bool
+    dropShadowAlpha : Double
+    dropShadowAngle : Double
+    dropShadowBlur : Double
+    dropShadowColor : Double
+    dropShadowDistance : Double
+    fill : Fill
+    fillGradientType : Gradient
+    fillGradientStops : List Double
+    fontFamily : List String
+    fontSize : Font.Size
+    fontStyle : Font.Style
+    fontVariant : Font.Variant
+    fontWeight : Font.Weight
+    leading : Double
+    letterSpacing : Double
+    lineHeight : Double
+    lineJoin : LineJoin
+    miterLimit : Double
+    padding : Double
+    stroke : Double
+    strokeThickness : Double
+    trim : Bool
+    -- textBaseline : String -- what does this do?
+    whiteSpace : Whitespace
+    wordWrap : Bool
+    wordWrapWidth : Double
 
 export
 data Text = MkText AnyPtr
@@ -107,6 +277,10 @@ DisplayObject Text where
     y = default_y
     rotation = default_rotation
     angle = default_angle
+    pivot = default_pivot
+    position = default_position
+    scale = default_scale
+    skew = default_skew
     internal (MkText i) = i
     
 namespace Text
@@ -129,6 +303,10 @@ DisplayObject Container where
     y = default_y
     rotation = default_rotation
     angle = default_angle
+    pivot = default_pivot
+    position = default_position
+    scale = default_scale
+    skew = default_skew
     internal (MkContainer i) = i
 
 namespace Container
@@ -148,23 +326,6 @@ namespace Container
     addChild (MkContainer container) displayObject =
         primIO $ prim__addChild container displayObject.internal
 
-    export
-    data Pivot = MkPivot AnyPtr
-
-    namespace Pivot
-        export
-        x : Pivot -> Property.Number
-        x (MkPivot p) = ESNum p "x"
-        export
-        y : Pivot -> Property.Number
-        y (MkPivot p) = ESNum p "y" 
-    
-    %foreign "browser:lambda: (con) => con.pivot"
-    prim__pivot : AnyPtr -> PrimIO AnyPtr
-
-    export
-    pivot : HasIO io => Container -> io Pivot
-    pivot (MkContainer c) = map MkPivot $ primIO $ prim__pivot c
 
 export
 data Application = MkApplication AnyPtr

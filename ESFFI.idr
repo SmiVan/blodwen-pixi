@@ -5,18 +5,22 @@ boolToInt : Bool -> Int
 boolToInt True = 1
 boolToInt False = 0
 
-namespace Property
 
+namespace Property
     bracketPropertyAccessor : (extraArgs: String) -> (suffix: String) -> String
     bracketPropertyAccessor extraArgs suffix = 
         "javascript:lambda: (p,n" ++ extraArgs ++ ") => p[n]" ++ suffix
-    
 
+    %foreign bracketPropertyAccessor "" ""
+    export
+    prim__access : AnyPtr -> String -> PrimIO AnyPtr
+
+   
     public export
     data Number = ESNum AnyPtr String
 
     namespace Number
-
+        export
         %foreign bracketPropertyAccessor "" ""
         prim__get : AnyPtr -> String -> PrimIO Double
 
@@ -75,3 +79,13 @@ namespace Property
         export
         (**=) : HasIO io => Number -> Double -> io ()
         (**=) = modifyNum prim__assign_pow
+
+public export
+interface ESEnum enumeratedType where
+    store : enumeratedType -> PrimIO AnyPtr
+    name : enumeratedType -> String
+
+    enumerate : HasIO io => enumeratedType -> io Double
+    enumerate e = primIO $ prim__get !(primIO $ store e) (name e)
+    
+    

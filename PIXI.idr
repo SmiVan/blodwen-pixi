@@ -1,6 +1,48 @@
 module PIXI
 import ESFFI
 
+data ObservablePoint = MkObsPoint AnyPtr
+
+public export
+interface DisplayObject a where
+    (.internal) : a -> AnyPtr
+    -- ++ Container
+    -- Graphics
+    -- ++ Sprite
+    -- ++ Text
+    -- BitmapText
+    -- TilingSprite
+    -- AnimatedSprite
+    -- Mesh
+    -- NineSlicePlane
+    -- SimpleMesh
+    -- SimplePlane
+    -- SimpleRope
+
+    -- (.pivot) : a -> ObservablePoint
+    -- (.position) : a -> ObservablePoint
+    -- (.scale) : a -> ObservablePoint
+    -- (.skew) : a -> ObservablePoint
+    
+    (.x) : a -> Property.Number
+    default_x : a -> Property.Number
+    default_x obj = ESNum obj.internal "x"
+    (.y) : a -> Property.Number
+    default_y : a -> Property.Number
+    default_y obj = ESNum obj.internal "y"
+    (.rotation) : a -> Property.Number
+    default_rotation : a -> Property.Number
+    default_rotation obj = ESNum obj.internal "rotation"
+    (.angle) : a -> Property.Number
+    default_angle : a -> Property.Number
+    default_angle obj  = ESNum obj.internal "angle" -- rotation in degrees
+
+    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
+    -- x = default_x
+    -- y = default_y
+    -- rotation = default_rotation
+    -- angle = default_angle
+
 export
 data Texture = MkTexture AnyPtr
 
@@ -14,6 +56,15 @@ namespace Texture
 
 export
 data Sprite = MkSprite AnyPtr
+
+export
+DisplayObject Sprite where
+    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
+    x = default_x
+    y = default_y
+    rotation = default_rotation
+    angle = default_angle
+    internal (MkSprite i) = i
 
 namespace Sprite
     %foreign "browser:lambda: (texture) => new PIXI.Sprite(texture)"
@@ -37,26 +88,48 @@ namespace Sprite
     -- blendmodeset : HasIO io => Sprite -> BlendMode -> io ()
     -- blendmodeset (MkSprite spr) blend = primIO $ prim__blendmodeset spr (show blend)
     
-    export
-    rotation : Sprite -> Property.Number
-    rotation (MkSprite c) = ESNum c "rotation"
+
+    %foreign "browser:lambda: x => x.blendMode = PIXI.BLEND_MODES.ADD"
+    prim__blend_add : AnyPtr -> PrimIO ()
 
     export
-    x : Sprite -> Property.Number
-    x (MkSprite c) = ESNum c "x"
-    export
-    y : Sprite -> Property.Number
-    y (MkSprite c) = ESNum c "y"
+    blendAdd : HasIO io => Sprite -> io ()
+    blendAdd (MkSprite s) = primIO $ prim__blend_add s
 
-    -- export
-    -- width : Sprite -> Property.Number
-    -- width (MkSprite s) = ESNum s "width"
-    -- export
-    -- height : Sprite -> Property.Number
-    -- height (MkSprite s) = ESNum s "height"
+
+export
+data Text = MkText AnyPtr
+
+export
+DisplayObject Text where
+    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
+    x = default_x
+    y = default_y
+    rotation = default_rotation
+    angle = default_angle
+    internal (MkText i) = i
+    
+namespace Text
+    
+    %foreign "browser:lambda: (str) => new PIXI.Text(str)"
+    prim__new : String -> PrimIO anyPtr
+
+    export
+    new : HasIO io => String -> io PIXI.Text
+    new str = map MkText $ primIO $ prim__new str
+
 
 export
 data Container = MkContainer AnyPtr
+
+export
+DisplayObject Container where
+    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
+    x = default_x
+    y = default_y
+    rotation = default_rotation
+    angle = default_angle
+    internal (MkContainer i) = i
 
 namespace Container
     %foreign "browser:lambda: () => new PIXI.Container()"
@@ -66,24 +139,14 @@ namespace Container
     new : HasIO io => io PIXI.Container
     new = map MkContainer $ primIO $ prim__newPixiContainer
 
-    %foreign "browser:lambda: (container, sprite) => container.addChild(sprite)"
-    prim__addChild : (container: AnyPtr) -> (sprite: AnyPtr) -> PrimIO ()
+    %foreign "browser:lambda: (container, displayObject) => container.addChild(displayObject)"
+    prim__addChild : (container: AnyPtr) -> (displayObject: AnyPtr) -> PrimIO ()
 
     export
-    addChild : HasIO io => Container -> PIXI.Sprite -> io ()
-    addChild (MkContainer container) (MkSprite sprite) =
-        primIO $ prim__addChild container sprite
-
-    export
-    rotation : Container -> Property.Number
-    rotation (MkContainer c) = ESNum c "rotation"
-
-    export
-    x : Container -> Property.Number
-    x (MkContainer c) = ESNum c "x"
-    export
-    y : Container -> Property.Number
-    y (MkContainer c) = ESNum c "y"
+    addChild : HasIO io => DisplayObject displayObject 
+        => Container -> displayObject -> io ()
+    addChild (MkContainer container) displayObject =
+        primIO $ prim__addChild container displayObject.internal
 
     export
     data Pivot = MkPivot AnyPtr
@@ -102,18 +165,6 @@ namespace Container
     export
     pivot : HasIO io => Container -> io Pivot
     pivot (MkContainer c) = map MkPivot $ primIO $ prim__pivot c
-
-export
-data Stage = MkStage AnyPtr
-
-namespace Stage
-    %foreign "browser:lambda: (stage, container) => stage.addChild(container)"
-    prim__addChild : (stage: AnyPtr) -> (container: AnyPtr) -> PrimIO ()
-
-    export
-    addChild : HasIO io => Stage -> PIXI.Container -> io ()
-    addChild (MkStage stage) (MkContainer container) =
-        primIO $ prim__addChild stage container
 
 export
 data Application = MkApplication AnyPtr
@@ -150,8 +201,8 @@ namespace Application
     prim__stage : AnyPtr -> PrimIO AnyPtr
 
     export 
-    stage : HasIO io => (app : Application) -> io Stage
-    stage (MkApplication anyptr) = map MkStage $ primIO $ prim__stage anyptr
+    stage : HasIO io => (app : Application) -> io Container
+    stage (MkApplication anyptr) = map MkContainer $ primIO $ prim__stage anyptr
 
     %foreign "browser:lambda: (app, callback) => app.ticker.add((delta) => callback(delta)())"
     prim__tickeradd : AnyPtr -> (Double -> PrimIO ()) -> PrimIO () 

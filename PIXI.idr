@@ -99,6 +99,9 @@ namespace Sprite
     blendAdd : HasIO io => Sprite -> io ()
     blendAdd (MkSprite s) = primIO $ prim__blend_add s
 
+export
+data TextStyle = MkTextStyle AnyPtr
+
 namespace TextStyle
     public export
     data Align = Left | Center | Right
@@ -108,13 +111,13 @@ namespace TextStyle
         show Right = "right"
 
     public export
-    data Fill = List Double
+    data Fill = FillWith (List Double)
            -- | CanvasGradient
            -- | CanvasPattern
 
     public export
-    data Gradient = LINEAR_VERTICAL
-                  | LINEAR_HORIZONTAL
+    data Gradient = LinearVertical
+                  | LinearHorizontal
 
     %foreign "browser:lambda: () => PIXI.TEXT_GRADIENT"
     prim__gradient_store : PrimIO AnyPtr
@@ -122,8 +125,8 @@ namespace TextStyle
     export
     ESEnum Gradient where
        store _ = prim__gradient_store
-       name LINEAR_VERTICAL = "LINEAR_VERTICAL"
-       name LINEAR_HORIZONTAL = "LINEAR_HORIZONTAL"
+       name LinearVertical = "LINEAR_VERTICAL"
+       name LinearHorizontal = "LINEAR_HORIZONTAL"
 
     namespace Font
         public export
@@ -206,37 +209,80 @@ namespace TextStyle
         show Pre = "pre"
         show PreLine = "pre-line"
 
-record TextStyle where
-    constructor MkTextStyle
-    align : Align
-    breakWords : Bool
-    dropShadow : Bool
-    dropShadowAlpha : Double
-    dropShadowAngle : Double
-    dropShadowBlur : Double
-    dropShadowColor : Double
-    dropShadowDistance : Double
-    fill : Fill
-    fillGradientType : Gradient
-    fillGradientStops : List Double
-    fontFamily : List String
-    fontSize : Font.Size
-    fontStyle : Font.Style
-    fontVariant : Font.Variant
-    fontWeight : Font.Weight
-    leading : Double
-    letterSpacing : Double
-    lineHeight : Double
-    lineJoin : LineJoin
-    miterLimit : Double
-    padding : Double
-    stroke : Double
-    strokeThickness : Double
-    trim : Bool
-    -- textBaseline : String -- what does this do?
-    whiteSpace : Whitespace
-    wordWrap : Bool
-    wordWrapWidth : Double
+    %foreign "browser:lambda: (str, style) => new PIXI.TextStyle()"
+    prim__new : PrimIO anyPtr
+
+    export
+    new : HasIO io => io TextStyle
+    new = map MkTextStyle $ primIO $ prim__new
+
+    export
+    (.internal) : TextStyle -> AnyPtr
+    (.internal) (MkTextStyle p) = p
+
+--     align : Align
+    export
+    (.breakWords) : TextStyle -> Property.Boolean
+    (.breakWords) ts = ESBoo ts.internal "breakWords"
+    export
+    (.dropShadow) : TextStyle -> Property.Boolean
+    (.dropShadow) ts = ESBoo ts.internal "dropShadow"
+    export
+    (.dropShadowAlpha) : TextStyle -> Property.Number
+    (.dropShadowAlpha) ts = ESNum ts.internal "dropShadowAlpha" 
+    export
+    (.dropShadowAngle) : TextStyle -> Property.Number
+    (.dropShadowAngle) ts = ESNum ts.internal "dropShadowAngle" 
+    export
+    (.dropShadowBlur) : TextStyle -> Property.Number
+    (.dropShadowBlur) ts = ESNum ts.internal "dropShadowBlur" 
+    export
+    (.dropShadowColor) : TextStyle -> Property.Number
+    (.dropShadowColor) ts = ESNum ts.internal "dropShadowColor" 
+    export
+    (.dropShadowDistance) : TextStyle -> Property.Number
+    (.dropShadowDistance) ts = ESNum ts.internal "dropShadowDistance" 
+--     fill : Fill
+--     fillGradientType : Gradient
+--     fillGradientStops : List Double
+--     fontFamily : List String
+--     fontSize : Font.Size
+--     fontStyle : Font.Style
+--     fontVariant : Font.Variant
+--     fontWeight : Font.Weight
+    export
+    (.leading) : TextStyle -> Property.Number
+    (.leading) ts = ESNum ts.internal "leading"
+    export
+    (.letterSpacing) : TextStyle -> Property.Number
+    (.letterSpacing) ts = ESNum ts.internal "letterSpacing"
+    export
+    (.lineHeight) : TextStyle -> Property.Number
+    (.lineHeight) ts = ESNum ts.internal "lineHeight"
+--     lineJoin : LineJoin
+    export
+    (.miterLimit) : TextStyle -> Property.Number
+    (.miterLimit) ts = ESNum ts.internal "miterLimit"
+    export
+    (.padding) : TextStyle -> Property.Number
+    (.padding) ts = ESNum ts.internal "padding"
+    export
+    (.stroke) : TextStyle -> Property.Number
+    (.stroke) ts = ESNum ts.internal "stroke"
+    export
+    (.strokeThickness) : TextStyle -> Property.Number
+    (.strokeThickness) ts = ESNum ts.internal "strokeThickness"
+    export
+    (.trim) : TextStyle -> Property.Boolean
+    (.trim) ts = ESBoo ts.internal "trim"
+--     -- textBaseline : String -- what does this do?
+--     whiteSpace : Whitespace
+    export
+    (.wordWrap) : TextStyle -> Property.Boolean
+    (.wordWrap) ts = ESBoo ts.internal "wordWrap"
+    export
+    (.wordWrapWidth) : TextStyle -> Property.Number
+    (.wordWrapWidth) ts = ESNum ts.internal "wordWrapWidth"
 
 export
 data Text = MkText AnyPtr
@@ -247,12 +293,12 @@ DisplayObject Text where
     
 namespace Text
     
-    %foreign "browser:lambda: (str) => new PIXI.Text(str)"
-    prim__new : String -> PrimIO anyPtr
+    %foreign "browser:lambda: (str, style) => new PIXI.Text(str, style)"
+    prim__new : String -> AnyPtr -> PrimIO anyPtr
 
     export
-    new : HasIO io => String -> io PIXI.Text
-    new str = map MkText $ primIO $ prim__new str
+    new : HasIO io => String -> TextStyle -> io PIXI.Text
+    new str style = map MkText $ primIO $ prim__new str style.internal
 
 
 export
@@ -264,11 +310,11 @@ DisplayObject Container where
 
 namespace Container
     %foreign "browser:lambda: () => new PIXI.Container()"
-    prim__newPixiContainer : PrimIO AnyPtr
+    prim__new : PrimIO AnyPtr
 
     export
     new : HasIO io => io PIXI.Container
-    new = map MkContainer $ primIO $ prim__newPixiContainer
+    new = map MkContainer $ primIO $ prim__new
 
     %foreign "browser:lambda: (container, displayObject) => container.addChild(displayObject)"
     prim__addChild : (container: AnyPtr) -> (displayObject: AnyPtr) -> PrimIO ()
@@ -287,22 +333,21 @@ namespace Application
     %foreign "browser:lambda: 
         (backgroundColor, transparent) => 
         new PIXI.Application({
-            backgroundColor: Number(backgroundColor), 
+            backgroundColor: backgroundColor, 
             transparent: transparent,
             resizeTo: window
         })"
-    prim__newPixiApplication : (backgroundColor: Int) 
-                            -> (transparent : Int)
+    prim__new : (backgroundColor: Double) 
+                            -> (transparent : Double)
                             -> PrimIO AnyPtr
 
     export
     new : HasIO io 
-        => {default 0 color : Int} 
-        -> {default False transparent : Bool} 
-        -> {default False transparent : Bool} 
+        => {default 0x0 color : Double} 
+        -> {default False transparent : Bool}  
         -> io PIXI.Application
     new {color} {transparent} = 
-        map MkApplication $ primIO $ prim__newPixiApplication color (boolToInt transparent)
+        map MkApplication $ primIO $ prim__new color (cast transparent)
 
     %foreign "browser:lambda: (app) => app.view"
     prim__view : AnyPtr -> PrimIO AnyPtr

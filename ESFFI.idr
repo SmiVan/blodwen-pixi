@@ -11,6 +11,7 @@ Cast Double Bool where
     cast _ = False
 
 namespace Property
+
     bracketPropertyAccessor : (extraArgs: String) -> (suffix: String) -> String
     bracketPropertyAccessor extraArgs suffix = 
         "javascript:lambda: (p,n" ++ extraArgs ++ ") => p[n]" ++ suffix
@@ -18,6 +19,33 @@ namespace Property
     %foreign bracketPropertyAccessor "" ""
     export
     prim__access : AnyPtr -> String -> PrimIO AnyPtr
+
+    public export
+    data StringObject = ESStr AnyPtr String
+
+    namespace StringObject
+        %foreign bracketPropertyAccessor "" ""
+        prim__get : AnyPtr -> String -> PrimIO String
+
+        export
+        get : HasIO io => StringObject -> io String
+        get (ESStr parent name) = primIO $ prim__get parent name
+
+        %foreign bracketPropertyAccessor ",x" "=x"
+        prim__assign_set : AnyPtr -> String -> String -> PrimIO ()
+
+        modifyStrObj : HasIO io 
+                => (prim__assign_func : AnyPtr -> String -> String -> PrimIO ())
+                -> StringObject 
+                -> String 
+                -> io ()
+        modifyStrObj prim__assign_func (ESStr parent name) x = 
+            primIO $ prim__assign_func parent name x
+
+        infixl 8 ::=, ++=
+        export
+        (::=) : HasIO io => StringObject -> String -> io ()
+        (::=) = modifyStrObj prim__assign_set
 
     public export
     data Boolean = ESBoo AnyPtr String

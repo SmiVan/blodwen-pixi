@@ -34,42 +34,22 @@ interface DisplayObject a where
     -- (.skew) : a -> ObservablePoint
     
     (.x) : a -> Property.Number
-    default_x : a -> Property.Number
-    default_x obj = ESNum obj.internal "x"
+    (.x) obj = ESNum obj.internal "x"
     (.y) : a -> Property.Number
-    default_y : a -> Property.Number
-    default_y obj = ESNum obj.internal "y"
+    (.y) obj = ESNum obj.internal "y"
     (.rotation) : a -> Property.Number
-    default_rotation : a -> Property.Number
-    default_rotation obj = ESNum obj.internal "rotation"
+    (.rotation) obj = ESNum obj.internal "rotation"
     (.angle) : a -> Property.Number
-    default_angle : a -> Property.Number
-    default_angle obj  = ESNum obj.internal "angle" -- rotation in degrees
+    (.angle) obj  = ESNum obj.internal "angle" -- rotation in degrees
 
     (.pivot) : HasIO io => a -> io ObservablePoint
-    default_pivot : HasIO io => a -> io ObservablePoint
-    default_pivot a = map MkObsPoint $ primIO $ prim__access a.internal "pivot"
+    (.pivot) a = map MkObsPoint $ primIO $ prim__access a.internal "pivot"
     (.position) : HasIO io => a -> io ObservablePoint
-    default_position : HasIO io => a -> io ObservablePoint
-    default_position a = map MkObsPoint $ primIO $ prim__access a.internal "position"
+    (.position) a = map MkObsPoint $ primIO $ prim__access a.internal "position"
     (.scale) : HasIO io => a -> io ObservablePoint
-    default_scale : HasIO io => a -> io ObservablePoint
-    default_scale a = map MkObsPoint $ primIO $ prim__access a.internal "scale"
+    (.scale) a = map MkObsPoint $ primIO $ prim__access a.internal "scale"
     (.skew) : HasIO io => a -> io ObservablePoint
-    default_skew : HasIO io => a -> io ObservablePoint
-    default_skew a = map MkObsPoint $ primIO $ prim__access a.internal "skew"
-
-    
-
-    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
-    -- x = default_x
-    -- y = default_y
-    -- rotation = default_rotation
-    -- angle = default_angle
-    -- pivot = default_pivot
-    -- position = default_position
-    -- scale = default_scale
-    -- skew = default_skew
+    (.skew) a = map MkObsPoint $ primIO $ prim__access a.internal "skew"
 
 export
 data Texture = MkTexture AnyPtr
@@ -87,16 +67,7 @@ data Sprite = MkSprite AnyPtr
 
 export
 DisplayObject Sprite where
-    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
-    x = default_x
-    y = default_y
-    rotation = default_rotation
-    angle = default_angle
-    pivot = default_pivot
-    position = default_position
-    scale = default_scale
-    skew = default_skew
-    internal (MkSprite i) = i
+    (.internal) (MkSprite i) = i
 
 namespace Sprite
     %foreign "browser:lambda: (texture) => new PIXI.Sprite(texture)"
@@ -272,16 +243,7 @@ data Text = MkText AnyPtr
 
 export
 DisplayObject Text where
-    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
-    x = default_x
-    y = default_y
-    rotation = default_rotation
-    angle = default_angle
-    pivot = default_pivot
-    position = default_position
-    scale = default_scale
-    skew = default_skew
-    internal (MkText i) = i
+    (.internal) (MkText i) = i
     
 namespace Text
     
@@ -298,16 +260,7 @@ data Container = MkContainer AnyPtr
 
 export
 DisplayObject Container where
-    -- WORKAROUND FOR https://github.com/idris-lang/Idris2/issues/954
-    x = default_x
-    y = default_y
-    rotation = default_rotation
-    angle = default_angle
-    pivot = default_pivot
-    position = default_position
-    scale = default_scale
-    skew = default_skew
-    internal (MkContainer i) = i
+    (.internal) (MkContainer i) = i
 
 namespace Container
     %foreign "browser:lambda: () => new PIXI.Container()"

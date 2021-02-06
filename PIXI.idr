@@ -294,7 +294,7 @@ DisplayObject Text where
 namespace Text
     
     %foreign "browser:lambda: (str, style) => new PIXI.Text(str, style)"
-    prim__new : String -> AnyPtr -> PrimIO anyPtr
+    prim__new : String -> AnyPtr -> PrimIO AnyPtr
 
     export
     new : HasIO io => String -> TextStyle -> io PIXI.Text
@@ -322,7 +322,7 @@ namespace Container
     export
     addChild : HasIO io => DisplayObject displayObject 
         => Container -> displayObject -> io ()
-    addChild (MkContainer container) displayObject =
+    addChild (MkContainer container) displayObject = do
         primIO $ prim__addChild container displayObject.internal
 
 

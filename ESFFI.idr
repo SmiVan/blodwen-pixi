@@ -21,33 +21,6 @@ namespace Property
     prim__access : AnyPtr -> String -> PrimIO AnyPtr
 
     public export
-    data StringObject = ESStr AnyPtr String
-
-    namespace StringObject
-        %foreign bracketPropertyAccessor "" ""
-        prim__get : AnyPtr -> String -> PrimIO String
-
-        export
-        get : HasIO io => StringObject -> io String
-        get (ESStr parent name) = primIO $ prim__get parent name
-
-        %foreign bracketPropertyAccessor ",x" "=x"
-        prim__assign_set : AnyPtr -> String -> String -> PrimIO ()
-
-        modifyStrObj : HasIO io 
-                => (prim__assign_func : AnyPtr -> String -> String -> PrimIO ())
-                -> StringObject 
-                -> String 
-                -> io ()
-        modifyStrObj prim__assign_func (ESStr parent name) x = 
-            primIO $ prim__assign_func parent name x
-
-        infixl 8 ::=, ++=
-        export
-        (::=) : HasIO io => StringObject -> String -> io ()
-        (::=) = modifyStrObj prim__assign_set
-
-    public export
     data Boolean = ESBoo AnyPtr String
     
     namespace Boolean
@@ -131,6 +104,47 @@ namespace Property
         export
         (**=) : HasIO io => Number -> Double -> io ()
         (**=) = modifyNum prim__assign_pow
+
+
+    public export
+    data StringObject = ESStr AnyPtr String
+
+    namespace StringObject
+        %foreign bracketPropertyAccessor "" ""
+        prim__get : AnyPtr -> String -> PrimIO String
+
+        export
+        get : HasIO io => StringObject -> io String
+        get (ESStr parent name) = primIO $ prim__get parent name
+
+        %foreign bracketPropertyAccessor ",x" "=x"
+        prim__assign_set : AnyPtr -> String -> String -> PrimIO ()
+
+        modifyStrObj : HasIO io 
+                => (prim__assign_func : AnyPtr -> String -> String -> PrimIO ())
+                -> StringObject 
+                -> String 
+                -> io ()
+        modifyStrObj prim__assign_func (ESStr parent name) x = 
+            primIO $ prim__assign_func parent name x
+
+        infixl 8 ::=, ++=
+        export
+        (::=) : HasIO io => StringObject -> String -> io ()
+        (::=) = modifyStrObj prim__assign_set
+
+    -- for strings which can only be one of predefined values, defined through data on idris side
+    public export
+    data Data : (dat : Type) -> Type where
+        ESDataStr : Show dat => StringObject -> Data dat
+    
+    namespace Data 
+        -- TODO: Get
+        
+        infixl 8 ::=
+        export
+        (::=) : HasIO io => Data dat -> dat -> io ()
+        (::=) (ESDataStr strobj) d = strobj ::= (show d)
 
 public export
 interface ESEnum enumeratedType where

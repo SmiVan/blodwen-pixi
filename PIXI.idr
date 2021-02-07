@@ -253,7 +253,9 @@ namespace TextStyle
 --     fill : Fill
 --     fillGradientType : Gradient
 --     fillGradientStops : List Double
---     fontFamily : List String
+    export
+    (.fontFamily) : TextStyle -> Property.Array String
+    (.fontFamily) ts = ESArr ts.internal "fontFamily"
     export
     (.fontSize) : TextStyle -> Property.Data Font.Size
     (.fontSize) ts = ESDataStr (ESStr ts.internal "fontSize")

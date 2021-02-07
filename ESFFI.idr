@@ -95,9 +95,9 @@ namespace Array
 
 namespace Property
 
-    bracketPropertyAccessor : (extraArgs: String) -> (suffix: String) -> String
-    bracketPropertyAccessor extraArgs suffix = 
-        "javascript:lambda: (p,n" ++ extraArgs ++ ") => p[n]" ++ suffix
+    bracketPropertyAccessor : (extraArgs: String) -> (suffix: String) -> {default "" preface : String} -> String
+    bracketPropertyAccessor extraArgs suffix {preface} = 
+        "javascript:lambda: (" ++ preface ++ "p,n" ++ extraArgs ++ ") => p[n]" ++ suffix
 
     %foreign bracketPropertyAccessor "" ""
     export
@@ -241,7 +241,7 @@ namespace Property
             let array = ref ptr 
             readToList array 
         
-        %foreign bracketPropertyAccessor ",x" "=x"
+        %foreign bracketPropertyAccessor ",x" "=x" {preface="_,"}
         prim__assign_set : AnyPtr -> String -> ArrayPtr ty -> PrimIO ()
 
         infixl 8 ::=, ++=

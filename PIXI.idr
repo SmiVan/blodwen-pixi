@@ -159,6 +159,11 @@ namespace TextStyle
         data Variant = VariantNormal
                      | VariantSmallCaps
 
+        export
+        Show Variant where
+            show VariantNormal = "normal"
+            show VariantSmallCaps = "small-caps"
+
         public export
         data Weight = WeightNormal
                     | WeightBold
@@ -174,6 +179,7 @@ namespace TextStyle
                     | Weight800W
                     | Weight900W
         
+        export
         Show Weight where
             show WeightNormal = "normal"
             show WeightBold = "bold"
@@ -220,7 +226,9 @@ namespace TextStyle
     (.internal) : TextStyle -> AnyPtr
     (.internal) (MkTextStyle p) = p
 
---     align : Align
+    export
+    (.align) : TextStyle -> Property.Data Align
+    (.align) ts = ESDataStr (ESStr ts.internal "align")
     export
     (.breakWords) : TextStyle -> Property.Boolean
     (.breakWords) ts = ESBoo ts.internal "breakWords"
@@ -246,10 +254,18 @@ namespace TextStyle
 --     fillGradientType : Gradient
 --     fillGradientStops : List Double
 --     fontFamily : List String
---     fontSize : Font.Size
---     fontStyle : Font.Style
---     fontVariant : Font.Variant
---     fontWeight : Font.Weight
+    export
+    (.fontSize) : TextStyle -> Property.Data Font.Size
+    (.fontSize) ts = ESDataStr (ESStr ts.internal "fontSize")
+    export
+    (.fontStyle) : TextStyle -> Property.Data Font.Style
+    (.fontStyle) ts = ESDataStr (ESStr ts.internal "fontStyle")
+    export
+    (.fontVariant) : TextStyle -> Property.Data Font.Variant
+    (.fontVariant) ts = ESDataStr (ESStr ts.internal "fontVariant")
+    export
+    (.fontWeight) : TextStyle -> Property.Data Font.Weight
+    (.fontWeight) ts = ESDataStr (ESStr ts.internal "fontWeight")
     export
     (.leading) : TextStyle -> Property.Number
     (.leading) ts = ESNum ts.internal "leading"
@@ -259,7 +275,9 @@ namespace TextStyle
     export
     (.lineHeight) : TextStyle -> Property.Number
     (.lineHeight) ts = ESNum ts.internal "lineHeight"
---     lineJoin : LineJoin
+    export
+    (.lineJoin) : TextStyle -> Property.Data LineJoin
+    (.lineJoin) ts = ESDataStr (ESStr ts.internal "lineJoin")
     export
     (.miterLimit) : TextStyle -> Property.Number
     (.miterLimit) ts = ESNum ts.internal "miterLimit"
@@ -276,7 +294,9 @@ namespace TextStyle
     (.trim) : TextStyle -> Property.Boolean
     (.trim) ts = ESBoo ts.internal "trim"
 --     -- textBaseline : String -- what does this do?
---     whiteSpace : Whitespace
+    export
+    (.whiteSpace) : TextStyle -> Property.Data Whitespace
+    (.whiteSpace) ts = ESDataStr (ESStr ts.internal "whiteSpace")
     export
     (.wordWrap) : TextStyle -> Property.Boolean
     (.wordWrap) ts = ESBoo ts.internal "wordWrap"

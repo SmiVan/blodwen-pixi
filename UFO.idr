@@ -118,9 +118,9 @@ parameters (parent : AnyPtr, name : String)
     %foreign access {args=["x"], act=(++"=x")}
     prim__put_num : Double -> PrimIO ()
 
-    %foreign access {act=(\obj => "__prim_js2idris_array(" ++ obj ++ ")")} -- TODO: check if this behaves correctly
+    %foreign access {act=(\obj => "__prim_js2idris_array(" ++ obj ++ ")")}
     prim__get_arr : PrimIO (List ty)
-    %foreign access {args=["_,arr"], act=(++"=__prim_idris2js_array(arr)")} -- TODO: check if this behaves correctly
+    %foreign access {args=["_,arr"], act=(++"=__prim_idris2js_array(arr)")}
     prim__put_arr : List ty -> PrimIO ()
 
 export

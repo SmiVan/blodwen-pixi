@@ -4,6 +4,12 @@ import Data.List
 %foreign "browser:lambda: (_, a) => console.debug(a)"
 prim__consoleDebug : a -> PrimIO ()
 
+%foreign "javascript:lambda: () => globalThis"
+prim__global : PrimIO AnyPtr
+export
+global : HasIO io => io AnyPtr
+global = primIO $ prim__global
+
 export
 debug : HasIO io => a -> io ()
 debug = primIO . prim__consoleDebug

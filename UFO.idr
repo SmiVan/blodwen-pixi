@@ -1,4 +1,5 @@
 module UFO -- Unified Foreign Object
+import Data.List
 
 %foreign "browser:lambda: (_, a) => console.debug(a)"
 prim__consoleDebug : a -> PrimIO ()
@@ -24,8 +25,9 @@ Cast Double Bool where
     cast 1.0 = True
     cast _ = False
 
-ObjData : List (String, Type) -> Type
-ObjData Nil = () -- This has to be a thing because you can't have a 1-sized tuple!
+ObjData : (types : List (String, Type)) -> Type
+ObjData Nil = ()
+ObjData ((str, ty) :: Nil) = ty
 ObjData ((str, ty) :: next) = Pair ty (ObjData next)
 
 mutual
@@ -53,7 +55,6 @@ mutual
     marshalECMAType ECMABoolean = Bool
     marshalECMAType (ECMAArray esty) = List (marshalECMAType esty)
     marshalECMAType (ECMAObject index) = ObjData (map (\(Named esty name) => (name,marshalECMAType esty)) index)
-    -- marshalECMAType (ECMAObject (item::items)) = ObjData () -- but not quite
     -- marshalECMAType (ECMAUnion Nil) = () -- technically invalid but hm
     -- marshalECMAType (ECMAUnion (item::Nil)) = marshalECMAType item
     -- marshalECMAType (ECMAUnion (item::items)) = Either (marshalECMAType item) (marshalECMAType (ECMAUnion items))
@@ -143,7 +144,8 @@ namespace SCRATCHPAD
     obj3 = (1, 2, 3) -- hmm
 
     obj4 : ObjData [("one", Double), ("two", Double), ("three", Double)]
-    obj4 = (1, 2, 3, ()) 
+    obj4 = (1, 2, 3) -- good enough
+
     -- Probably the most optimal version for the moment.
 
     -- myOptionalThing : UFO

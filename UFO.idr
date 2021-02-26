@@ -31,38 +31,49 @@ Cast Double Bool where
     cast 1.0 = True
     cast _ = False
 
+public export
+interface Cast a b => Cast b (Maybe a) => Domain a b where -- nothing
+
 LabelledTuple : (types : List (String, Type)) -> Type
 LabelledTuple Nil = ()
 LabelledTuple ((str, ty) :: Nil) = ty
 LabelledTuple ((str, ty) :: next) = Pair ty (LabelledTuple next)
 
-mutual
-    -- depends on UFO, marshalECMAType
-    public export
-    data ECMAType : Type where
-        ECMAString : ECMAType
-        ECMANumber : ECMAType
-        ECMABoolean : ECMAType
-        ECMAArray : ECMAType -> ECMAType --  A kind of list or array
-        ECMAObject : List UFO -> ECMAType -- A kind of tuple or struct
-        Or : ECMAType -> ECMAType -> ECMAType -- A kind of either or union
-        -- ECMAStrictly : (esty : ECMAType ** List (marshalECMAType esty)) -> ECMAType -- only one of following values
+----/!\ Mutually depending types: UFO, ECMAType, marshalECMAType /!\----
+-- A special thank you to Denis Buzdalov and Edwin Brady for explaining this.
 
-    -- depends on ECMAType
-    public export
-    data UFO : Type where
-        Named : ECMAType -> String -> UFO
+data UFO : Type -- forward declare
+data ECMAType : Type -- forward declare
+public export
+marshalECMAType : ECMAType -> Type -- depends on ECMAType
 
-    -- depends on ECMAType
-    public export
-    marshalECMAType : ECMAType -> Type
-    marshalECMAType ECMAString = String
-    marshalECMAType ECMANumber = Double
-    marshalECMAType ECMABoolean = Bool
-    marshalECMAType (ECMAArray esty) = List (marshalECMAType esty)
-    marshalECMAType (ECMAObject index) = LabelledTuple (map (\(Named esty name) => (name, marshalECMAType esty)) index)
-    marshalECMAType (Or esty1 esty2) = Either (marshalECMAType esty1) (marshalECMAType esty2)
-    -- marshalECMAType (ECMAStrictly (esty**_)) = marshalECMAType esty
+-- depends on UFO, marshalECMAType
+public export
+data ECMAType : Type where
+    ECMAString : ECMAType
+    ECMANumber : ECMAType
+    ECMABoolean : ECMAType
+    ECMAArray : ECMAType -> ECMAType --  A kind of list or array
+    ECMAObject : List UFO -> ECMAType -- A kind of tuple or struct
+    Or : ECMAType -> ECMAType -> ECMAType -- A kind of either or union
+    In : (esty : ECMAType) -> (ty : Type) -> Domain (ty) (marshalECMAType esty) => ECMAType -- values are restricted to the domain
+
+-- depends on ECMAType
+public export
+data UFO : Type where
+    Named : ECMAType -> String -> UFO
+
+-- public export
+-- marshalECMAType : ECMAType -> Type
+marshalECMAType ECMAString = String
+marshalECMAType ECMANumber = Double
+marshalECMAType ECMABoolean = Bool
+marshalECMAType (ECMAArray esty) = List (marshalECMAType esty)
+marshalECMAType (ECMAObject index) = LabelledTuple (map (\(Named esty name) => (name, marshalECMAType esty)) index)
+marshalECMAType (Or esty1 esty2) = Either (marshalECMAType esty1) (marshalECMAType esty2)
+marshalECMAType (In esty ty) = ty
+
+----/!\ Mutually depending types end here. /!\----
 
 public export
 marshal : UFO -> Type
@@ -102,6 +113,7 @@ get parent ((ECMAArray esty) `Named` name) = primIO $ prim__get_arr parent name
 get parent (ECMAObject Nil `Named` _) = pure () -- skip pointless operation
 get parent (ECMAObject memberList `Named` name) = ?get_obj
 get parent ((esty1 `Or` esty2) `Named` name) = ?get_union -- This may require determination of type at javascript level!
+get parent ((esty `In` ty) `Named` name) = ?get_strict
 
 export
 put : HasIO io => (parent : AnyPtr) -> (ufo : UFO) -> (marshal ufo) -> io ()
@@ -112,6 +124,7 @@ put parent ((ECMAArray esty) `Named` name) content = primIO $ prim__put_arr pare
 put parent (ECMAObject Nil `Named` _) _ = pure () -- skip pointless operation
 put parent (ECMAObject memberList `Named` name) content = ?put_obj
 put parent ((esty1 `Or` esty2) `Named` name) content = ?put_union
+put parent ((esty `In` ty) `Named` name) content = ?put_strict
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
@@ -164,8 +177,25 @@ namespace SCRATCHPAD
     -- numOrArr = 1
     -- numOrArr = [1,2]
 
-    -- myStrictThing : UFO
-    -- myStrictThing = ECMAStrictly (ECMAString ** ["please", "thank you"]) `Named` "magicword"
+    data MyDomain = Please
+                  | ThankYou
+    
+    Cast MyDomain String where
+        cast Please = "please"
+        cast ThankYou = "thank you"
+
+    Cast String (Maybe MyDomain) where
+        cast "please" = Just Please
+        cast "thank you" = Just ThankYou
+        cast _ = Nothing
+
+    Domain MyDomain String where -- nothing
+
+    magicword : MyDomain
+    magicword = Please
+
+    myStrictThing : UFO
+    myStrictThing = (ECMAString `In` MyDomain) `Named` "magicword"
 
     -- magicword = "please"
     -- magicword = "thank you"

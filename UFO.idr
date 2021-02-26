@@ -1,5 +1,6 @@
 module UFO -- Unified Foreign Object
-import Data.List
+import Data.Maybe -- for fromMaybe
+-- import Data.List
 
 %foreign "browser:lambda: (_, a) => console.debug(a)"
 prim__consoleDebug : a -> PrimIO ()
@@ -110,10 +111,18 @@ get parent (ECMAString `Named` name) = primIO $ prim__get_str parent name
 get parent (ECMANumber `Named` name) = primIO $ prim__get_num parent name 
 get parent (ECMABoolean `Named` name) = map cast $ primIO $ prim__get_num parent name 
 get parent ((ECMAArray esty) `Named` name) = primIO $ prim__get_arr parent name 
+get parent ((esty `In` ty) `Named` name) = do
+    raw <- get parent (esty `Named` name)
+    case (cast raw) of
+        Just val => pure val
+        Nothing => do
+            debug $ "/!\\ UFO GET FAILED: Value of variable " ++ name ++ " is outside its domain:"
+            debug raw 
+            debug $ "/!\\ Going off the rails!"
+            believe_me () -- TODO: Implement different input/output marshalling later?
 get parent (ECMAObject Nil `Named` _) = pure () -- skip pointless operation
 get parent (ECMAObject memberList `Named` name) = ?get_obj
 get parent ((esty1 `Or` esty2) `Named` name) = ?get_union -- This may require determination of type at javascript level!
-get parent ((esty `In` ty) `Named` name) = ?get_strict
 
 export
 put : HasIO io => (parent : AnyPtr) -> (ufo : UFO) -> (marshal ufo) -> io ()
@@ -121,10 +130,11 @@ put parent (ECMAString `Named` name) content = primIO $ prim__put_str parent nam
 put parent (ECMANumber `Named` name) content = primIO $ prim__put_num parent name content
 put parent (ECMABoolean `Named` name) content = primIO $ prim__put_num parent name (cast content)
 put parent ((ECMAArray esty) `Named` name) content = primIO $ prim__put_arr parent name content
+put parent ((esty `In` ty) `Named` name) content = put parent (esty `Named` name) (cast content)
 put parent (ECMAObject Nil `Named` _) _ = pure () -- skip pointless operation
 put parent (ECMAObject memberList `Named` name) content = ?put_obj
 put parent ((esty1 `Or` esty2) `Named` name) content = ?put_union
-put parent ((esty `In` ty) `Named` name) content = ?put_strict
+
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 module UFO -- Unified Foreign Object
-import Data.Maybe -- for fromMaybe
+-- import Data.Maybe -- for fromMaybe
 -- import Data.List
 
 %foreign "browser:lambda: (_, a) => console.debug(a)"
@@ -35,6 +35,7 @@ Cast Double Bool where
 public export
 interface Cast a b => Cast b (Maybe a) => Domain a b where -- nothing
 
+public export
 LabelledTuple : (types : List (String, Type)) -> Type
 LabelledTuple Nil = ()
 LabelledTuple ((str, ty) :: Nil) = ty
@@ -95,7 +96,7 @@ parameters (parent : AnyPtr, name : String)
     %foreign access {args=["x"], act=(++"=x")}
     prim__put_str : String -> PrimIO ()
 
-    %foreign access
+    %foreign access {act=(\obj => "Number(" ++ obj ++ ")")}
     prim__get_num : PrimIO Double
     %foreign access {args=["x"], act=(++"=x")}
     prim__put_num : Double -> PrimIO ()
@@ -104,6 +105,9 @@ parameters (parent : AnyPtr, name : String)
     prim__get_arr : PrimIO (List ty)
     %foreign access {args=["arr"], act=(++"=__prim_idris2js_array(arr)"), offset=True}
     prim__put_arr : List ty -> PrimIO ()
+
+    %foreign access {act=(\obj => obj ++ "===undefined?" ++ obj ++ "=Object():" ++ obj)}
+    prim__get_obj : PrimIO AnyPtr -- initialises the object if it is undefined
 
 export
 get : HasIO io => (parent : AnyPtr) -> (ufo : UFO) -> io (marshal ufo)
@@ -121,8 +125,18 @@ get parent ((esty `In` ty) `Named` name) = do
             debug $ "/!\\ Going off the rails!"
             believe_me () -- TODO: Implement different input/output marshalling later?
 get parent (ECMAObject Nil `Named` _) = pure () -- skip pointless operation
-get parent (ECMAObject memberList `Named` name) = ?get_obj
-get parent ((esty1 `Or` esty2) `Named` name) = ?get_union -- This may require determination of type at javascript level!
+get parent (ECMAObject memberList `Named` name) = do
+    obj_ptr <- primIO $ prim__get_obj parent name
+    case memberList of
+        Nil => pure () -- unreachable
+        (ufo :: Nil) => do -- last member
+            member <- get obj_ptr ufo
+            pure $ believe_me member -- TODO: not sure how to solve the complicated type mismatch here, take a look at this later
+        (ufo :: next@(_ :: _)) => do -- many members
+            member <- get obj_ptr ufo
+            members <- get parent (ECMAObject next `Named` name)
+            pure $ believe_me (MkPair member members) -- TODO: not sure how to solve the complicated type mismatch here, take a look at this later
+get parent ((esty1 `Or` esty2) `Named` name) = DEBUG "?get_union" (believe_me ()) -- This may require determination of type at javascript level!
 
 export
 put : HasIO io => (parent : AnyPtr) -> (ufo : UFO) -> (marshal ufo) -> io ()
@@ -132,8 +146,8 @@ put parent (ECMABoolean `Named` name) content = primIO $ prim__put_num parent na
 put parent ((ECMAArray esty) `Named` name) content = primIO $ prim__put_arr parent name content
 put parent ((esty `In` ty) `Named` name) content = put parent (esty `Named` name) (cast content)
 put parent (ECMAObject Nil `Named` _) _ = pure () -- skip pointless operation
-put parent (ECMAObject memberList `Named` name) content = ?put_obj
-put parent ((esty1 `Or` esty2) `Named` name) content = ?put_union
+put parent (ECMAObject memberList `Named` name) content = DEBUG "?put_obj" (believe_me ())
+put parent ((esty1 `Or` esty2) `Named` name) content = DEBUG "?put_union" (believe_me ())
 
 
 ---------------------------------------------------------------------------------------------------

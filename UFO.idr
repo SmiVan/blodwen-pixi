@@ -1,5 +1,4 @@
 module UFO -- Unified Foreign Object
-import Data.SortedMap
 
 %foreign "browser:lambda: (_, a) => console.debug(a)"
 prim__consoleDebug : a -> PrimIO ()
@@ -25,9 +24,9 @@ Cast Double Bool where
     cast 1.0 = True
     cast _ = False
 
--- data Dictionary : SortedMap String ty -> Type where
---     DictNil : SortedMap String () -> Dictionary empty
---     Dictate : Dictionary smap -> Dictionary empty
+ObjData : List (String, Type) -> Type
+ObjData Nil = () -- This has to be a thing because you can't have a 1-sized tuple!
+ObjData ((str, ty) :: next) = Pair ty (ObjData next)
 
 mutual
     -- depends on UFO, marshalECMAType
@@ -37,7 +36,7 @@ mutual
         ECMANumber : ECMAType 
         ECMABoolean : ECMAType
         ECMAArray : ECMAType -> ECMAType
-        -- ECMAObject : List UFO -> ECMAType
+        ECMAObject : List UFO -> ECMAType
         -- ECMAUnion : List ECMAType -> ECMAType
         -- ECMAStrictly : (esty : ECMAType ** List (marshalECMAType esty)) -> ECMAType -- only one of following values
 
@@ -53,8 +52,8 @@ mutual
     marshalECMAType ECMANumber = Double
     marshalECMAType ECMABoolean = Bool
     marshalECMAType (ECMAArray esty) = List (marshalECMAType esty)
-    -- marshalECMAType (ECMAObject Nil) = () -- hmm
-    -- marshalECMAType (ECMAObject (item::items)) = SortedMap String (ty : Type ** ty) -- but not quite
+    marshalECMAType (ECMAObject index) = ObjData (map (\(Named esty name) => (name,marshalECMAType esty)) index)
+    -- marshalECMAType (ECMAObject (item::items)) = ObjData () -- but not quite
     -- marshalECMAType (ECMAUnion Nil) = () -- technically invalid but hm
     -- marshalECMAType (ECMAUnion (item::Nil)) = marshalECMAType item
     -- marshalECMAType (ECMAUnion (item::items)) = Either (marshalECMAType item) (marshalECMAType (ECMAUnion items))
@@ -63,40 +62,6 @@ mutual
 public export
 marshal : UFO -> Type
 marshal (Named (ty) _) = marshalECMAType ty
-
-myStr : UFO
-myStr = ECMAString `Named` "string"
-
--- string = "haha"
-
-myArr : UFO
-myArr = ECMAArray ECMAString `Named` "strings"
-
--- strings = ["abra", "cadabra"]
-
--- myNumberObject : UFO
--- myNumberObject = ECMAObject [
---                     ECMANumber `Named` "one",
---                     ECMANumber `Named` "two",
---                     ECMANumber `Named` "three"
---                     ] `Named` "obj"
-
--- obj = {one=1, two=2, three=3}
-
--- myOptionalThing : UFO
--- myOptionalThing = ECMAUnion [
---                     ECMANumber,
---                     ECMAArray ECMANumber
---                     ] `Named` "numOrArr"
-
--- numOrArr = 1
--- numOrArr = [1,2]
-
--- myStrictThing : UFO
--- myStrictThing = ECMAStrictly (ECMAString ** ["please", "thank you"]) `Named` "magicword"
-
--- magicword = "please"
--- magicword = "thank you"
 
 access : {default Nil args: List String} -> {default id act: String -> String} -> {default False offset: Bool} -> String
 access {args} {act} {offset} = 
@@ -136,3 +101,62 @@ put parent (ECMAString `Named` name) content = primIO $ prim__put_str parent nam
 put parent (ECMANumber `Named` name) content = primIO $ prim__put_num parent name content
 put parent (ECMABoolean `Named` name) content = primIO $ prim__put_num parent name (cast content)
 put parent ((ECMAArray esty) `Named` name) content = primIO $ prim__put_arr parent name content
+
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------
+
+namespace SCRATCHPAD
+    myStr : UFO
+    myStr = ECMAString `Named` "string"
+
+    -- string = "haha"
+
+    myArr : UFO
+    myArr = ECMAArray ECMAString `Named` "strings"
+
+    -- strings = ["abra", "cadabra"]
+
+    myNumberObject : UFO
+    myNumberObject = ECMAObject [
+                        ECMANumber `Named` "one",
+                        ECMANumber `Named` "two",
+                        ECMANumber `Named` "three"
+                        ] `Named` "obj"
+
+    -- obj = {one:1, two:2, three:3}
+
+    obj : (typeOf : (String -> Type) ** List (item : String ** typeOf item))
+    obj = (types ** [("one" ** 1), ("two" ** 2), ("three" ** 3), ("truth" ** True)])
+        where 
+            types : String -> Type
+            types "one" = Double
+            types "two" = Double
+            types "three" = Double
+            types "truth" = Bool
+            types _ = Double -- not technically correct
+
+    obj2 : List (type : Type ** (String, type))
+    obj2 = [(Double ** ("one", 1)), (Double ** ("two", 2)), (Double ** ("three", 3)), (Bool ** ("truth", True))] -- not quite right either
+
+    obj3 : (Double, Double, Double)
+    obj3 = (1, 2, 3) -- hmm
+
+    obj4 : ObjData [("one", Double), ("two", Double), ("three", Double)]
+    obj4 = (1, 2, 3, ()) 
+    -- Probably the most optimal version for the moment.
+
+    -- myOptionalThing : UFO
+    -- myOptionalThing = ECMAUnion [
+    --                     ECMANumber,
+    --                     ECMAArray ECMANumber
+    --                     ] `Named` "numOrArr"
+
+    -- numOrArr = 1
+    -- numOrArr = [1,2]
+
+    -- myStrictThing : UFO
+    -- myStrictThing = ECMAStrictly (ECMAString ** ["please", "thank you"]) `Named` "magicword"
+
+    -- magicword = "please"
+    -- magicword = "thank you"

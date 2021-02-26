@@ -25,21 +25,21 @@ Cast Double Bool where
     cast 1.0 = True
     cast _ = False
 
-ObjData : (types : List (String, Type)) -> Type
-ObjData Nil = ()
-ObjData ((str, ty) :: Nil) = ty
-ObjData ((str, ty) :: next) = Pair ty (ObjData next)
+LabelledTuple : (types : List (String, Type)) -> Type
+LabelledTuple Nil = ()
+LabelledTuple ((str, ty) :: Nil) = ty
+LabelledTuple ((str, ty) :: next) = Pair ty (LabelledTuple next)
 
 mutual
     -- depends on UFO, marshalECMAType
     public export
     data ECMAType : Type where
-        ECMAString : ECMAType 
-        ECMANumber : ECMAType 
+        ECMAString : ECMAType
+        ECMANumber : ECMAType
         ECMABoolean : ECMAType
-        ECMAArray : ECMAType -> ECMAType
-        ECMAObject : List UFO -> ECMAType
-        -- ECMAUnion : List ECMAType -> ECMAType
+        ECMAArray : ECMAType -> ECMAType --  A kind of list or array
+        ECMAObject : List UFO -> ECMAType -- A kind of tuple or struct
+        Or : ECMAType -> ECMAType -> ECMAType -- A kind of either or union
         -- ECMAStrictly : (esty : ECMAType ** List (marshalECMAType esty)) -> ECMAType -- only one of following values
 
     -- depends on ECMAType
@@ -54,10 +54,8 @@ mutual
     marshalECMAType ECMANumber = Double
     marshalECMAType ECMABoolean = Bool
     marshalECMAType (ECMAArray esty) = List (marshalECMAType esty)
-    marshalECMAType (ECMAObject index) = ObjData (map (\(Named esty name) => (name,marshalECMAType esty)) index)
-    -- marshalECMAType (ECMAUnion Nil) = () -- technically invalid but hm
-    -- marshalECMAType (ECMAUnion (item::Nil)) = marshalECMAType item
-    -- marshalECMAType (ECMAUnion (item::items)) = Either (marshalECMAType item) (marshalECMAType (ECMAUnion items))
+    marshalECMAType (ECMAObject index) = LabelledTuple (map (\(Named esty name) => (name, marshalECMAType esty)) index)
+    marshalECMAType (Or esty1 esty2) = Either (marshalECMAType esty1) (marshalECMAType esty2)
     -- marshalECMAType (ECMAStrictly (esty**_)) = marshalECMAType esty
 
 public export
@@ -86,7 +84,7 @@ parameters (parent : AnyPtr, name : String)
 
     %foreign access {act=(\obj => "__prim_js2idris_array(" ++ obj ++ ")")}
     prim__get_arr : PrimIO (List ty)
-    %foreign access {args=["_,arr"], act=(++"=__prim_idris2js_array(arr)")}
+    %foreign access {args=["arr"], act=(++"=__prim_idris2js_array(arr)"), offset=True}
     prim__put_arr : List ty -> PrimIO ()
 
 export
@@ -95,6 +93,9 @@ get parent (ECMAString `Named` name) = primIO $ prim__get_str parent name
 get parent (ECMANumber `Named` name) = primIO $ prim__get_num parent name 
 get parent (ECMABoolean `Named` name) = map cast $ primIO $ prim__get_num parent name 
 get parent ((ECMAArray esty) `Named` name) = primIO $ prim__get_arr parent name 
+get parent (ECMAObject Nil `Named` _) = pure () -- skip pointless operation
+get parent (ECMAObject memberList `Named` name) = ?get_obj
+get parent ((esty1 `Or` esty2) `Named` name) = ?get_union -- This may require determination of type at javascript level!
 
 export
 put : HasIO io => (parent : AnyPtr) -> (ufo : UFO) -> (marshal ufo) -> io ()
@@ -102,6 +103,9 @@ put parent (ECMAString `Named` name) content = primIO $ prim__put_str parent nam
 put parent (ECMANumber `Named` name) content = primIO $ prim__put_num parent name content
 put parent (ECMABoolean `Named` name) content = primIO $ prim__put_num parent name (cast content)
 put parent ((ECMAArray esty) `Named` name) content = primIO $ prim__put_arr parent name content
+put parent (ECMAObject Nil `Named` _) _ = pure () -- skip pointless operation
+put parent (ECMAObject memberList `Named` name) content = ?put_obj
+put parent ((esty1 `Or` esty2) `Named` name) content = ?put_union
 
 ---------------------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------------------
@@ -143,16 +147,13 @@ namespace SCRATCHPAD
     obj3 : (Double, Double, Double)
     obj3 = (1, 2, 3) -- hmm
 
-    obj4 : ObjData [("one", Double), ("two", Double), ("three", Double)]
+    obj4 : LabelledTuple [("one", Double), ("two", Double), ("three", Double)]
     obj4 = (1, 2, 3) -- good enough
 
     -- Probably the most optimal version for the moment.
 
-    -- myOptionalThing : UFO
-    -- myOptionalThing = ECMAUnion [
-    --                     ECMANumber,
-    --                     ECMAArray ECMANumber
-    --                     ] `Named` "numOrArr"
+    myOptionalThing : UFO
+    myOptionalThing = (ECMANumber `Or` (ECMAArray ECMANumber)) `Named` "numOrArr"
 
     -- numOrArr = 1
     -- numOrArr = [1,2]
